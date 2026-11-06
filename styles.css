@@ -3,3 +3,34 @@
 
 .qr-layout{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(300px,1.1fr);gap:15px}.qr-panel,.qr-instructions{padding:22px}.qr-code-box{width:240px;height:240px;margin:22px auto;background:#fff;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;padding:12px}.qr-code-box img,.qr-code-box canvas{max-width:100%;height:auto!important}.qr-placeholder{color:#9aa49c;font-size:11px;text-align:center}.qr-label{display:block;font-size:10px;font-weight:700;margin:12px 0 6px}.qr-url-input{width:100%;height:39px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:11px 'DM Sans'}.qr-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.qr-help{font-size:9px;color:#89968c;line-height:1.6}.qr-instructions h2{font:700 14px Manrope;margin:0 0 14px}.qr-instructions ol{padding-left:20px;color:#68756b;font-size:11px;line-height:2}.qr-notice{margin-top:20px}.text-link{display:inline-block;margin-top:14px;color:#7250a3;font-size:11px;font-weight:700;text-decoration:none}.customer-body{background:#f4f7f3;min-height:100vh;padding:24px 14px;font-family:'DM Sans',sans-serif;color:#26352b}.customer-card{max-width:490px;margin:0 auto;background:white;border:1px solid #e5ebe4;border-radius:18px;padding:26px;box-shadow:0 12px 36px #213b2510}.customer-brand{text-align:center;font:800 27px Manrope;letter-spacing:-1px}.customer-sub{text-align:center;color:#849087;font-size:10px;letter-spacing:1.2px;margin:5px 0 24px}.customer-card h1{text-align:center;font:800 22px Manrope;margin:0 0 7px}.customer-intro{text-align:center;color:#849087;font-size:12px;line-height:1.5;margin:0 0 24px}.customer-field{margin:18px 0}.customer-field label{display:block;font-size:11px;font-weight:700;margin-bottom:8px}.rating-stars{display:flex;justify-content:center;gap:10px}.rating-stars button{border:0;background:transparent;font-size:34px;color:#d8ded8;cursor:pointer;padding:2px}.rating-stars button.selected{color:#e3a62e}.rating-caption{text-align:center;color:#8a958d;font-size:10px;margin-top:5px}.customer-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}.customer-options label{border:1px solid #e6ece5;border-radius:8px;padding:10px;font-weight:500;display:flex;align-items:center;gap:7px;margin:0}.customer-options input{accent-color:#7250a3}.customer-card textarea{width:100%;border:1px solid #dfe7df;border-radius:9px;padding:12px;font:12px/1.6 'DM Sans';resize:vertical}.customer-submit{width:100%;border:0;background:#65428f;color:white;border-radius:9px;padding:13px;font:700 12px 'DM Sans';cursor:pointer}.customer-submit:disabled{opacity:.55;cursor:wait}.customer-privacy{text-align:center;color:#9aa49c;font-size:9px;line-height:1.5;margin-top:13px}.customer-success{text-align:center;padding:32px 12px}.customer-success .check{font-size:42px;color:#47835a}.customer-success h2{font:800 21px Manrope}.customer-success p{font-size:12px;color:#7d8a80;line-height:1.6}.customer-error{background:#fff3ef;color:#a54e40;padding:10px;border-radius:8px;font-size:11px;margin:10px 0}
 @media(max-width:760px){.qr-layout{grid-template-columns:1fr}.customer-card{padding:22px 18px}}
+
+
+/* Purple Seedlings brand refresh */
+:root{--bg:#f7f4fb;--surface:#fff;--ink:#29213a;--muted:#82788f;--line:#ece6f3;--green:#67429a;--green-2:#f0eafa;--sidebar:#2b1c46;--shadow:0 8px 28px rgba(55,35,83,.055)}
+body{background:var(--bg);color:var(--ink)}
+.sidebar{background:linear-gradient(180deg,#2d1d49 0%,#38245a 100%)}
+.brand{gap:10px;padding-bottom:36px}
+.brand-mascot{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:15px;padding:4px}
+.brand-name{color:#fff}.brand-name small{color:#c7b7dc}
+.nav-item:hover,.nav-item.active{background:#4b326d;color:#fff}.nav-item.active{box-shadow:inset 3px 0 #d3b9f4}
+.nav-icon{color:#c4addf}.nav-count{background:#5b407c;color:#fff}
+.ai-status{border-color:#5a4474;background:#38264f}.ai-status small,.profile small{color:#c1b1d4}.avatar{background:#eadff7;color:#513477}
+.primary-button{background:#68449b;color:#fff;box-shadow:0 3px 8px #68449b25}.primary-button:hover{background:#54347f}
+.text-button,.text-link{color:#68449b}
+.notice,.insight-banner{background:#f4effa;border-color:#e8ddf4}.notice-icon,.insight-spark{background:#e8dcf5;color:#68449b}.notice b,.insight-banner b{color:#4b326d}
+.topic-fill{background:#9471bd}.metric-icon{background:#f3eef8;color:#745398}.metric-icon.green{background:#f0eafa;color:#68449b}
+.live-pill{background:#f0eafa;color:#68449b}.live-pill i{background:#8a65b5;box-shadow:0 0 0 4px #8a65b520}
+.modal textarea:focus,.modal input:focus,.modal select:focus{border-color:#a98acb;box-shadow:0 0 0 3px #a98acb25}
+.auth-mascot{display:block;width:112px;height:112px;object-fit:contain;background:#fff;border-radius:24px;padding:9px;margin:0 auto 12px}
+.auth-brand{text-align:center;font:800 30px Manrope;letter-spacing:-1px;margin-bottom:4px;color:#fff}.auth-brand span{color:#c7a9ed}
+.customer-body{background:radial-gradient(circle at 50% 0%,#eee4f8 0%,#f8f5fb 44%,#f6f2fa 100%);color:#302442}
+.customer-card{border:1px solid #e9e0f2;box-shadow:0 14px 40px rgba(55,35,83,.09);border-radius:20px}
+.customer-mascot-wrap{display:flex;justify-content:center;margin:0 auto 8px}.customer-mascot{width:132px;height:132px;object-fit:contain}
+.customer-brand{color:#4b326d}.customer-sub{color:#8c7ba1}
+.customer-options label{border-color:#e9e1f1}.customer-options label:has(input:checked){background:#f5effb;border-color:#b99bd8;color:#56377f}
+.customer-options input{accent-color:#68449b}
+.customer-card textarea:focus,.customer-card input:focus{outline:none;border-color:#a98acb;box-shadow:0 0 0 3px #a98acb22}
+.customer-submit{background:#68449b;box-shadow:0 4px 12px #68449b25}.customer-submit:hover{background:#54347f}
+.customer-success .check{color:#68449b}
+.customer-privacy{color:#91879d}
+@media(max-width:760px){.brand-mascot{width:43px;height:43px}.customer-mascot{width:116px;height:116px}}

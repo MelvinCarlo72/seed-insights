@@ -25,3 +25,7 @@ Run `SEEDINSIGHTS_BRANCH_MIGRATION.sql` in the existing Supabase SQL Editor befo
 
 ## AI approach
 Transformers.js runs sentiment analysis in the staff dashboard when authorized staff re-analyze feedback. The public form does not need to load the model to submit a response. Rule-based keyword matching assigns one of the parent-experience topics. The insights panel aggregates feedback and presents review prompts; it does not make clinical or personnel judgments.
+
+
+## Purple Seedlings brand assets
+The dashboard and public feedback form use the Purple Seedlings mascot at `assets/purple-seedlings-mascot.png` and a purple/lavender visual theme. Keep the `assets` folder when deploying to Vercel.
