@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#f4f7f3">
+  <title>Purple Seedlings — Share your feedback</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="customer-body">
+  <main class="customer-card">
+    <div class="customer-brand">Purple Seedlings</div><div class="customer-sub">SEEDINSIGHTS · PARENT & GUARDIAN FEEDBACK</div>
+    <section id="formPanel">
+      <h1>Share your experience</h1><p class="customer-intro">Your feedback can help the center understand and improve the experience it provides to parents and guardians.</p>
+      <form id="customerForm">
+        <div class="customer-field"><label>1. Rate your overall experience *</label><div class="rating-stars" id="ratingStars" role="group" aria-label="Overall rating"></div><div class="rating-caption" id="ratingCaption">Tap a star to rate</div></div>
+        <div class="customer-field"><label>2. What area is your feedback about? (Optional)</label><div class="customer-options">
+          <label><input type="radio" name="topic" value="Staff and therapist experience" checked> Staff / therapist experience</label>
+          <label><input type="radio" name="topic" value="Parent communication"> Parent communication</label>
+          <label><input type="radio" name="topic" value="Scheduling"> Scheduling</label>
+          <label><input type="radio" name="topic" value="Service experience"> Service experience</label>
+          <label><input type="radio" name="topic" value="Facility and environment"> Facility / environment</label>
+          <label><input type="radio" name="topic" value="Parent support"> Parent support</label>
+          <label><input type="radio" name="topic" value="Other"> Other</label>
+        </div></div>
+        <div class="customer-field"><label for="branchName">Branch (optional)</label><input id="branchName" type="text" maxlength="100" placeholder="Enter the branch name" style="width:100%;height:40px;border:1px solid #dfe7df;border-radius:8px;padding:0 10px;font:12px 'DM Sans'"></div>
+        <div class="customer-field"><label for="customerComment">3. Share your feedback *</label><textarea id="customerComment" rows="5" maxlength="1000" required placeholder="You may comment on communication, scheduling, staff experience, or the center environment."></textarea></div>
+        <div class="customer-field"><label for="visitDate">Feedback date (optional)</label><input id="visitDate" type="date" style="width:100%;height:40px;border:1px solid #dfe7df;border-radius:8px;padding:0 10px;font:12px 'DM Sans'"></div>
+        <div id="formError" class="customer-error" hidden></div>
+        <button class="customer-submit" id="submitFeedback" type="submit">Submit feedback</button>
+      </form>
+      <p class="customer-privacy">No account is needed. Do not include your name, contact details, a child’s name, diagnosis, treatment details, or other identifying or sensitive information. This prototype is for service-experience feedback only; confirm the center’s approved privacy notice and handling process before collecting real responses.</p>
+    </section>
+    <section id="successPanel" class="customer-success" hidden><div class="check">✓</div><h2>Thank you for your feedback!</h2><p>Your feedback has been recorded. Thank you for helping the center review its parent and guardian experience.</p></section>
+    <p class="customer-privacy">Powered by SeedInsights · Student project prototype</p>
+  </main>
+  <script type="module" src="customer.js"></script>
+</body></html>
