@@ -154,3 +154,20 @@ document.addEventListener('click',async event=>{
   }catch(error){console.error('Session history summarization failed:',error);result.innerHTML='<b>Summary unavailable</b><span>Could not load or run the summarizer. Check the connection and try again.</span>';result.hidden=false;button.textContent='Try summary again';}
   finally{summaryProgressTarget=null;button.disabled=false;summaryInProgress=false;}
 });
+
+// Document import creates an unsaved draft; staff review it in the regular profile form.
+let selectedDocument=null;
+const importModal=$('importModal');
+$('importChildFile').addEventListener('click',()=>{selectedDocument=null;$('profileDocument').value='';$('uploadLabel').textContent='Choose a PDF or TXT file';$('analyzeDocument').disabled=true;$('importError').hidden=true;$('importProgress').hidden=true;importModal.classList.remove('hidden');});
+$('closeImportModal').addEventListener('click',()=>importModal.classList.add('hidden'));
+$('cancelImport').addEventListener('click',()=>importModal.classList.add('hidden'));
+importModal.addEventListener('click',event=>{if(event.target===importModal)importModal.classList.add('hidden');});
+$('profileDocument').addEventListener('change',event=>{const file=event.target.files?.[0];selectedDocument=null;$('importError').hidden=true;if(!file)return;const ext=file.name.split('.').pop().toLowerCase();if(!['pdf','txt'].includes(ext)||file.size>10*1024*1024){$('importError').textContent='Choose a PDF or TXT file under 10 MB.';$('importError').hidden=false;return;}selectedDocument=file;$('uploadLabel').textContent=file.name;$('analyzeDocument').disabled=false;});
+async function extractDocumentText(file){
+  if(file.name.toLowerCase().endsWith('.txt'))return await file.text();
+  const pdfjs=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+  const pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;if(pdf.numPages>40)throw new Error('PDF must be 40 pages or fewer.');let text='';
+  for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){const page=await pdf.getPage(pageNo);const content=await page.getTextContent();text+=content.items.map(item=>item.str).join(' ')+'\n';}
+  if(text.trim().length<40)throw new Error('No readable text found. Scanned PDFs need OCR, which is not configured.');return text;
+}
+$('analyzeDocument').addEventListener('click',async()=>{if(!selectedDocument)return;const button=$('analyzeDocument');button.disabled=true;$('importError').hidden=true;$('importProgress').hidden=false;$('importProgress').textContent='Reading and analyzing…';try{const documentText=await extractDocumentText(selectedDocument);if(documentText.length>40000)throw new Error('Text exceeds the 40,000 character limit.');const {data,error}=await supabase.functions.invoke('extract-child-profile',{body:{documentText}});if(error)throw new Error(error.message||'AI extraction failed.');if(!data?.profile)throw new Error('Invalid extraction response.');const draft={};for(const key of Object.keys(fields))draft[key]=typeof data.profile[key]==='string'?data.profile[key]:'';importModal.classList.add('hidden');openChildModal(draft);$('childFormError').textContent='AI-generated draft. Compare every field with the original before saving.';$('childFormError').hidden=false;showToast('Draft ready for review. Nothing has been saved yet.');}catch(error){console.error('Document extraction failed:',error);$('importError').textContent=error.message||'Could not analyze this file.';$('importError').hidden=false;}finally{button.disabled=false;$('importProgress').hidden=true;}});

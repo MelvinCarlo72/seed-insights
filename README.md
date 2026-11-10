@@ -11,6 +11,7 @@ SeedInsights is a staff-only prototype for maintaining one profile per child. It
 - Parent/guardian contact: name, relationship, phone, and email.
 - Service/development information: enrolled service, goals or focus areas, session history, and staff notes.
 - On-demand Transformers.js summaries of session-history notes, generated in the browser as drafts for staff review.
+- Staff-only PDF/TXT import that drafts profile fields through a protected Supabase Edge Function; staff review each field before saving.
 - Purple Seedlings branded staff dashboard.
 - Public feedback form, rating system, sentiment analysis, and QR feedback workflow removed.
 
@@ -40,6 +41,12 @@ The migration must be run before the new app can load or save child profiles. Th
 Staff can select **Draft AI summary** on a profile’s session history. Transformers.js runs the `Xenova/distilbart-cnn-6-6` summarization model in the browser. The model is downloaded from Hugging Face on first use and may be cached by the browser. The note text is not sent to a hosted inference API, and the generated summary is not saved; staff must check it against the original. The model is English-focused and can omit or distort details, especially in Filipino or Taglish notes. Do not use the summary as a clinical assessment or decision.
 
 Model information: https://huggingface.co/Xenova/distilbart-cnn-6-6
+
+## AI-assisted file import
+
+The import flow accepts text PDFs (up to 40 pages) and TXT files (up to 10 MB). PDF text extraction runs in the browser. Scanned/image-only PDFs are not supported until OCR is configured. Extracted text (up to 40,000 characters) is sent to `supabase/functions/extract-child-profile`; the original file is not uploaded or retained by this app. The function checks Supabase sign-in and `is_approved_staff()` before calling the AI provider.
+
+Deploy the Edge Function and set server-side secrets `AI_CHAT_COMPLETIONS_URL`, `AI_API_KEY`, and `AI_MODEL` for an approved OpenAI-compatible chat-completions endpoint. Set `APP_ORIGIN` to the deployed app origin. Never put the provider key in frontend code. The configured provider receives document text, so use only provider and retention settings approved by the center and instructor. Results are drafts and are not saved automatically; staff must compare every field with the source document.
 
 ## Brand assets
 

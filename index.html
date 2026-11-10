@@ -59,12 +59,21 @@
         <div class="prototype-footnote">Store only information the center has approved. No public child registration form is enabled.</div>
       </section>
       <section class="view" id="childrenView">
-        <div class="page-heading"><div><div class="eyebrow">APPROVED STAFF ACCESS</div><h1>Child profiles</h1><p>Basic details, guardian contacts, and service or developmental information.</p></div><button class="primary-button" id="addChildPage">＋ Add child profile</button></div>
+        <div class="page-heading"><div><div class="eyebrow">APPROVED STAFF ACCESS</div><h1>Child profiles</h1><p>Basic details, guardian contacts, and service or developmental information.</p></div><div class="heading-actions"><button class="secondary-button" id="importChildFile">⇧ Import from file</button><button class="primary-button" id="addChildPage">＋ Add child profile</button></div></div>
         <div class="notice"><span class="notice-icon">✦</span><div><b>AI-assisted session summaries</b><span>Draft a shorter version of a child’s session history in this browser. The English-focused draft is not saved and must be checked against the original notes. Use this with real child records only if the center approves AI processing.</span></div></div>
         <article class="panel child-panel"><div class="filter-row"><label class="search-box"><span>⌕</span><input id="searchChildren" type="search" placeholder="Search child, guardian, service, or branch…" /></label><select id="branchFilter" aria-label="Filter by branch"><option value="all">All branches</option></select></div><div class="child-list" id="allChildren"></div><div class="empty-state hidden" id="emptyChildren">No child profiles match your search.</div></article>
         <div class="prototype-footnote">Only signed-in, approved staff accounts can view or manage these records.</div>
       </section>
     </main>
+  </div>
+  <div class="modal-backdrop hidden" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+    <section class="modal import-modal"><div class="modal-heading"><div><div class="eyebrow">AI-ASSISTED IMPORT · STAFF REVIEW REQUIRED</div><h2 id="importTitle">Create a profile draft</h2></div><button type="button" class="close-modal" id="closeImportModal" aria-label="Close">×</button></div>
+      <p class="import-intro">Choose a PDF or TXT file. AI drafts possible profile fields in the editable form. Nothing is saved until staff review and save.</p>
+      <label class="upload-drop" for="profileDocument"><b id="uploadLabel">Choose a PDF or TXT file</b><small>Up to 10 MB. Scanned PDFs need OCR and are not supported yet.</small><input id="profileDocument" type="file" accept=".pdf,.txt,application/pdf,text/plain"></label>
+      <div class="import-privacy">Document text is sent to the configured AI provider. Upload only when center privacy and retention rules allow. The original file is not stored by this app.</div>
+      <div id="importProgress" role="status" hidden></div><div id="importError" class="customer-error" role="alert" hidden></div>
+      <div class="modal-actions"><button type="button" class="secondary-button" id="cancelImport">Cancel</button><button type="button" class="primary-button" id="analyzeDocument" disabled>Analyze and review</button></div>
+    </section>
   </div>
   <div class="modal-backdrop hidden" id="childModal" role="dialog" aria-modal="true" aria-labelledby="childModalTitle">
     <form class="modal child-modal" id="childForm">
