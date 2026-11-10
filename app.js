@@ -2,114 +2,155 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './supabase-config.js';
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2';
 
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+env.allowLocalModels=false;
+env.useBrowserCache=true;
+const SUMMARY_MODEL='Xenova/distilbart-cnn-6-6';
+const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+$('childBirthDate').max=new Date().toISOString().slice(0,10);
+let children=[];
+let toastTimer;
+let summarizer=null;
+let summarizerPromise=null;
+let summaryProgressTarget=null;
+let summaryInProgress=false;
+const fields={first_name:'childFirstName',last_name:'childLastName',date_of_birth:'childBirthDate',branch:'childBranch',guardian_name:'guardianName',guardian_relationship:'guardianRelationship',guardian_phone:'guardianPhone',guardian_email:'guardianEmail',enrolled_service:'enrolledService',developmental_goals:'developmentalGoals',session_history:'sessionHistory',staff_notes:'staffNotes'};
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-let feedback = [];
-let sentimentPipeline = null;
-let modelPromise = null;
-const $ = (id) => document.getElementById(id);
-const topics = ['Staff and therapist experience','Parent communication','Scheduling','Service experience','Facility and environment','Parent support','Other'];
-const topicTerms = {
-  'Staff and therapist experience':['staff','therapist','therapists','professional','friendly','accommodating','respectful','rude','helpful','approachable'],
-  'Parent communication':['communication','update','updates','inform','informed','message','messages','explain','explained','response','responsive','feedback'],
-  'Scheduling':['schedule','scheduling','appointment','appointments','reschedule','rescheduled','availability','late','waiting','wait time','delay','cancelled'],
-  'Service experience':['service','assessment','process','program','programs','session','sessions','experience','support'],
-  'Facility and environment':['facility','facilities','clean','cleanliness','room','rooms','environment','safe','safety','accessible','accessibility','parking'],
-  'Parent support':['parent','parents','guidance','coaching','support','orientation','resources','understanding']
-};
-function escapeHTML(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function classifyTopic(text){const lower=text.toLowerCase();let best='Other',bestCount=0;for(const [topic,terms] of Object.entries(topicTerms)){const count=terms.reduce((n,term)=>n+(lower.includes(term)?1:0),0);if(count>bestCount){best=topic;bestCount=count;}}return best;}
-function sentimentLabel(result){const label=(result?.label||'').toLowerCase();if(label.includes('positive'))return 'positive';if(label.includes('negative'))return 'negative';if(label==='label_1')return 'positive';if(label==='label_0')return 'negative';return 'neutral';}
-async function getModel(){if(sentimentPipeline)return sentimentPipeline;if(!modelPromise){modelPromise=(async()=>{setAIStatus('Loading multilingual AI model…',true);sentimentPipeline=await pipeline('text-classification','Horizon-Labs/multilingual-sentiment-small',{dtype:'q8',progress_callback:info=>{if(info.status==='progress'&&Number.isFinite(info.progress))setAIStatus(`Loading AI model… ${Math.round(info.progress)}%`,true);else if(info.status==='downloading')setAIStatus('Downloading AI model…',true);}});setAIStatus('AI engine ready',false);return sentimentPipeline;})().catch(err=>{modelPromise=null;sentimentPipeline=null;setAIStatus('AI model unavailable',false);throw err;});}return modelPromise;}
-function setAIStatus(label,loading){$('sidebarStatus').textContent=label;$('sidebarStatusDot').style.background=loading?'#d5a34e':label.includes('unavailable')?'#d17b70':'#6ab783';}
-async function analyzeText(text){const model=await getModel();const result=await model(text.slice(0,512));const item=Array.isArray(result)?result[0]:result;return {sentiment:sentimentLabel(item),score:Number(item?.score||0)};}
-function formatDate(date){if(!date)return 'Date not set';return new Date(`${date}T12:00:00`).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});}
-function sentimentIcon(s){return s==='positive'?'↗':s==='negative'?'!':'–';}
-function entryHTML(item){return `<div class="feedback-entry"><div class="sentiment-mark ${item.sentiment}">${sentimentIcon(item.sentiment)}</div><div class="entry-main"><div class="entry-text">${escapeHTML(item.text)}</div><div class="entry-meta"><span>${formatDate(item.date)}</span><span>·</span><span>${escapeHTML(item.source)}${item.branch?` · ${escapeHTML(item.branch)}`:''}</span><span class="topic-tag">${escapeHTML(item.topic||'Other')}</span><span class="sentiment-tag ${item.sentiment}">${item.sentiment}</span></div></div></div>`;}
-function countBy(key){return feedback.reduce((acc,item)=>{const value=item[key]||'Other';acc[value]=(acc[value]||0)+1;return acc;},{});}
-function renderOverview(){const total=feedback.length;const counts=countBy('sentiment');const pos=counts.positive||0,neg=counts.negative||0,neu=counts.neutral||0;const pct=n=>total?Math.round(n/total*100):0;$('totalMetric').textContent=total;$('positiveMetric').innerHTML=`${pct(pos)}<span class="metric-unit">%</span>`;$('negativeMetric').innerHTML=`${pct(neg)}<span class="metric-unit">%</span>`;$('positiveCount').textContent=`${pos} positive`;$('negativeCount').textContent=`${neg} negative`;$('donutTotal').textContent=total;
- const topicCounts=countBy('topic');const top=Object.entries(topicCounts).sort((a,b)=>b[1]-a[1])[0];$('topTopicMetric').textContent=top?top[0]:'—';const posPct=pct(pos),negPct=pct(neg),neuPct=Math.max(0,100-posPct-negPct);$('sentimentDonut').style.background=`conic-gradient(#4e9365 0 ${posPct}%,#d27a6c ${posPct}% ${posPct+negPct}%,#d7ded8 ${posPct+negPct}% 100%)`;$('sentimentLegend').innerHTML=[['Positive',pos,'#4e9365'],['Negative',neg,'#d27a6c'],['Neutral',neu,'#d7ded8']].map(([name,n,color])=>`<div class="legend-row"><i class="legend-swatch" style="background:${color}"></i>${name}<b>${n}</b></div>`).join('');
- const sortedTopics=Object.entries(topicCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);$('topicBars').innerHTML=sortedTopics.length?sortedTopics.map(([name,n])=>`<div class="topic-row"><span>${escapeHTML(name)}</span><div class="topic-track"><div class="topic-fill" style="width:${Math.max(4,n/total*100)}%"></div></div><b>${n}</b></div>`).join(''):'<div class="empty-state">No topics yet.</div>';$('recentFeedback').innerHTML=[...feedback].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4).map(entryHTML).join('')||'<div class="empty-state">No feedback yet.</div>';$('feedbackNavCount').textContent=total;}
-function renderFeedback(){const q=$('searchFeedback').value.toLowerCase().trim(),sent=$('sentimentFilter').value,topic=$('topicFilter').value;const filtered=[...feedback].sort((a,b)=>b.date.localeCompare(a.date)).filter(x=>(!q||x.text.toLowerCase().includes(q))&&(sent==='all'||x.sentiment===sent)&&(topic==='all'||x.topic===topic));$('allFeedback').innerHTML=filtered.map(entryHTML).join('');$('emptyState').classList.toggle('hidden',filtered.length>0);}
-function renderInsights(){
-  const total=feedback.length;
-  const positives=feedback.filter(x=>x.sentiment==='positive');
-  const negatives=feedback.filter(x=>x.sentiment==='negative');
-  const neutrals=feedback.filter(x=>x.sentiment==='neutral');
-  const avgRating=feedback.filter(x=>Number(x.rating)>0);
-  const average=avgRating.length?(avgRating.reduce((sum,x)=>sum+Number(x.rating),0)/avgRating.length).toFixed(1):'—';
-  const negativeRate=total?Math.round(negatives.length/total*100):0;
-  const topicStats={};
-  feedback.forEach(x=>{const topic=x.topic||'Other';if(!topicStats[topic])topicStats[topic]={total:0,negative:0,positive:0,neutral:0,comments:[]};const row=topicStats[topic];row.total++;row[x.sentiment||'neutral']=(row[x.sentiment||'neutral']||0)+1;row.comments.push(x.text);});
-  const rankedTopics=Object.entries(topicStats).sort((a,b)=>((b[1].negative/Math.max(1,b[1].total))-(a[1].negative/Math.max(1,a[1].total)))||b[1].negative-a[1].negative);
-  const mostConcern=rankedTopics.filter(([,v])=>v.negative>0).sort((a,b)=>b[1].negative-a[1].negative)[0];
-  const summaryCards=[
-    ['Analyzed feedback',total,'All available records'],
-    ['Negative feedback',`${negativeRate}%`,`${negatives.length} of ${total} comments`],
-    ['Average rating',average==='—'?'—':`${average}/5`,`${avgRating.length} ratings available`],
-    ['Top concern',mostConcern?mostConcern[0]:'None yet',mostConcern?`${mostConcern[1].negative} negative mention${mostConcern[1].negative===1?'':'s'}`:'No negative topics detected']
-  ];
-  $('insightSummary').innerHTML=summaryCards.map(([label,value,detail])=>`<article class="insight-stat"><span>${escapeHTML(label)}</span><b>${escapeHTML(value)}</b><small>${escapeHTML(detail)}</small></article>`).join('');
-  const themeHTML=(items,negative)=>{
-    const grouped={};items.forEach(x=>{const t=x.topic||'Other';grouped[t]=grouped[t]||[];grouped[t].push(x.text);});
-    const sorted=Object.entries(grouped).sort((a,b)=>b[1].length-a[1].length);
-    return sorted.length?sorted.slice(0,4).map(([topic,comments])=>`<div class="theme-item ${negative?'negative':''}"><i class="theme-bullet"></i><div><b>${escapeHTML(topic)} · ${comments.length} mention${comments.length>1?'s':''}</b><span>“${escapeHTML(comments[0].slice(0,115))}${comments[0].length>115?'…':''}”</span></div></div>`).join(''):'<div class="empty-state">No entries in this group yet.</div>';
-  };
-  $('positiveThemes').innerHTML=themeHTML(positives,false);
-  $('negativeThemes').innerHTML=themeHTML(negatives,true);
-  const recommendationMap={
-    'Staff and therapist experience':['Review staff and therapist experience','Review recurring comments about respectful communication, professionalism, responsiveness, and the overall interaction.'],
-    'Parent communication':['Review parent communication practices','Look for repeated feedback about updates, explanations, response times, and how information is shared with families.'],
-    'Scheduling':['Review scheduling and appointment coordination','Check whether feedback points to appointment availability, schedule changes, delays, or notification practices.'],
-    'Service experience':['Review the overall service experience','Read the original comments to understand which parts of the center experience parents are describing.'],
-    'Facility and environment':['Review the center environment','Check recurring comments about cleanliness, comfort, accessibility, safety, or the physical environment.'],
-    'Parent support':['Review parent support and guidance','Look for feedback about the clarity, accessibility, and usefulness of information and support provided to parents.'],
-    'Other':['Review uncategorized comments','Read these comments manually and consider expanding the topic keywords if a repeated theme appears.']
-  };
-  const recs=rankedTopics.filter(([,v])=>v.negative>0).slice(0,3).map(([topic,v])=>({title:recommendationMap[topic]?.[0]||`Review ${topic}`,desc:`${v.negative} of ${v.total} comments in this topic are negative. ${recommendationMap[topic]?.[1]||'Review the original comments for a recurring issue.'}`}));
-  if(!recs.length&&total)recs.push({title:'Maintain positive customer experiences',desc:`${positives.length} positive, ${neutrals.length} neutral, and ${negatives.length} negative comments are currently recorded. Continue monitoring new feedback for changes.`});
-  if(!total)recs.push({title:'Start collecting parent and guardian feedback',desc:'Once parent and guardian comments are submitted, SeedInsights can identify recurring service-experience themes for staff to review.'});
-  $('recommendations').innerHTML=recs.map(r=>`<div class="recommendation"><b>${escapeHTML(r.title)}</b><p>${escapeHTML(r.desc)}</p></div>`).join('');
+function escapeHTML(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function showToast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200);}
+function showView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active-view'));$(`${name}View`).classList.add('active-view');document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$('breadcrumbCurrent').textContent=name==='overview'?'Overview':'Child profiles';$('sidebar').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});}
+function formatDate(value){if(!value)return 'Not provided';const d=new Date(`${value}T12:00:00`);return Number.isNaN(d.valueOf())?value:d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});}
+function setSummaryProgress(info){
+  if(!summaryProgressTarget)return;
+  if(info.status==='progress'&&Number.isFinite(info.progress))summaryProgressTarget.textContent=`Loading AI model… ${Math.round(info.progress)}%`;
+  else if(info.status==='downloading')summaryProgressTarget.textContent='Downloading AI model…';
+  else if(info.status==='initiate')summaryProgressTarget.textContent='Preparing AI model…';
 }
-function renderAll(){renderOverview();renderFeedback();renderInsights();}
-function showView(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active-view'));$(`${name}View`).classList.add('active-view');document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$('breadcrumbCurrent').textContent=name==='overview'?'Overview':name==='feedback'?'Feedback':name==='qr'?'Parent feedback QR':'AI insights';$('sidebar').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});}
-let toastTimer;function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600);}
-function openModal(){ $('feedbackModal').classList.remove('hidden');$('feedbackDate').value=new Date().toISOString().slice(0,10);$('feedbackText').focus();}
-function closeModal(){ $('feedbackModal').classList.add('hidden');$('feedbackForm').reset();}
-async function exportCSV(){const rows=[['Feedback','Date','Source','Branch','Rating','Sentiment','Confidence','Topic'],...feedback.map(x=>[x.text,x.date,x.source,x.branch||'',x.rating??'',x.sentiment,x.score??'',x.topic])];const csv=rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='seedinsights-feedback.csv';a.click();URL.revokeObjectURL(url);toast('Feedback exported as CSV.');}
-async function loadFeedback(){
-  const {data,error}=await supabase.from('feedback').select('id,text,source,date,rating,sentiment,score,topic,branch,created_at').order('created_at',{ascending:false});
-  if(error){console.error(error);toast('Could not load feedback. Check database access.');return;}
-  feedback=(data||[]).map(x=>({...x,date:x.date||x.created_at?.slice(0,10)||''}));
-  renderAll();
+async function getSummarizer(){
+  if(summarizer)return summarizer;
+  if(!summarizerPromise){
+    const loading=pipeline('summarization',SUMMARY_MODEL,{dtype:'q8',progress_callback:setSummaryProgress})
+      .then(model=>(summarizer=model));
+    let timeoutId;
+    const timeout=new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error('Summarizer model load timed out')),120000);});
+    summarizerPromise=Promise.race([loading,timeout])
+      .finally(()=>clearTimeout(timeoutId))
+      .catch(error=>{summarizer=null;summarizerPromise=null;throw error;});
+  }
+  return summarizerPromise;
+}
+function profileCard(child){
+  const name=`${child.first_name||''} ${child.last_name||''}`.trim();
+  const guardian=[child.guardian_name,child.guardian_relationship].filter(Boolean).join(' · ');
+  const contact=[child.guardian_phone,child.guardian_email].filter(Boolean).join(' · ');
+  const hasHistory=Boolean(child.session_history?.trim());
+  return `<article class="child-entry"><div class="child-entry-head"><div class="child-avatar">${escapeHTML((child.first_name||'?').slice(0,1).toUpperCase())}</div><div class="child-entry-title"><h3>${escapeHTML(name)}</h3><p>${escapeHTML(child.branch||'Branch not set')} · Date of birth: ${escapeHTML(formatDate(child.date_of_birth))}</p></div><button class="secondary-button child-edit" type="button" data-edit-child="${escapeHTML(child.id)}">Edit profile</button></div><details class="child-details"><summary>View guardian, service, goals, and notes</summary><div class="child-detail-grid"><div><b>Parent or guardian</b><span>${escapeHTML(guardian||'Not provided')}</span><span>${escapeHTML(contact||'No contact details provided')}</span></div><div><b>Enrolled service</b><span>${escapeHTML(child.enrolled_service||'Not provided')}</span></div><div><b>Goals or focus areas</b><span class="preserve-lines">${escapeHTML(child.developmental_goals||'Not provided')}</span></div><div class="session-history-block"><b>Session history</b><span class="preserve-lines">${escapeHTML(child.session_history||'Not provided')}</span><button class="text-button summarize-history" type="button" data-summarize-child="${escapeHTML(child.id)}" ${hasHistory?'':'disabled'}>✦ Draft AI summary</button><div class="ai-summary" id="summary-${escapeHTML(child.id)}" aria-live="polite" hidden></div></div><div><b>Staff notes</b><span class="preserve-lines">${escapeHTML(child.staff_notes||'Not provided')}</span></div></div></details></article>`;
+}
+function renderChildren(){
+  const q=$('searchChildren').value.trim().toLowerCase();
+  const branch=$('branchFilter').value;
+  const list=children.filter(child=>{
+    const haystack=[child.first_name,child.last_name,child.branch,child.guardian_name,child.guardian_phone,child.guardian_email,child.enrolled_service,child.developmental_goals,child.session_history,child.staff_notes].join(' ').toLowerCase();
+    return (!q||haystack.includes(q))&&(branch==='all'||child.branch===branch);
+  });
+  $('allChildren').innerHTML=list.map(profileCard).join('');
+  $('recentChildren').innerHTML=[...children].sort((a,b)=>new Date(b.updated_at||b.created_at)-new Date(a.updated_at||a.created_at)).slice(0,4).map(profileCard).join('')||'<div class="empty-state">No child profiles yet. Add a profile to get started.</div>';
+  $('emptyChildren').classList.toggle('hidden',list.length>0);
+  $('childrenNavCount').textContent=String(children.length);
+  $('childTotal').textContent=String(children.length);
+  $('serviceTotal').textContent=String(children.filter(c=>c.enrolled_service||c.developmental_goals||c.session_history||c.staff_notes).length);
+  const branches=[...new Set(children.map(c=>c.branch).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const select=$('branchFilter');
+  const current=select.value;
+  select.innerHTML='<option value="all">All branches</option>'+branches.map(b=>`<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
+  select.value=branches.includes(current)?current:'all';
+  $('branchTotal').textContent=String(branches.length);
+}
+async function loadChildren(){
+  const {data,error}=await supabase.from('child_profiles').select('*').order('last_name',{ascending:true}).order('first_name',{ascending:true});
+  if(error){console.error('Child profile load failed:',error.message);children=[];renderChildren();showToast('Could not load profiles. Confirm the staff account is approved and the database setup is applied.');return;}
+  children=data||[];renderChildren();
+}
+function openChildModal(child=null){
+  $('childForm').reset();$('childFormError').hidden=true;$('childId').value=child?.id||'';
+  $('childModalTitle').textContent=child?'Edit child profile':'Add child profile';
+  $('saveChild').textContent=child?'Save changes':'Save profile';
+  for(const [field,id] of Object.entries(fields))$(id).value=child?.[field]||'';
+  $('childModal').classList.remove('hidden');$('childFirstName').focus();
+}
+function closeChildModal(){$('childModal').classList.add('hidden');$('childForm').reset();$('childId').value='';$('childFormError').hidden=true;}
+function getProfilePayload(){
+  const payload={};
+  for(const [field,id] of Object.entries(fields)){const value=$(id).value.trim();payload[field]=value||null;}
+  payload.first_name=$('childFirstName').value.trim();payload.last_name=$('childLastName').value.trim();
+  return payload;
+}
+async function saveChild(event){
+  event.preventDefault();
+  const button=$('saveChild');button.disabled=true;button.textContent='Saving…';$('childFormError').hidden=true;
+  const id=$('childId').value;
+  const payload=getProfilePayload();
+  const request=id
+    ?supabase.from('child_profiles').update({...payload,updated_at:new Date().toISOString()}).eq('id',id)
+    :supabase.from('child_profiles').insert(payload);
+  const {error}=await request;
+  button.disabled=false;button.textContent=id?'Save changes':'Save profile';
+  if(error){console.error('Child profile save failed:',error.message);$('childFormError').textContent='Could not save. Confirm this account is approved for staff access and check the database connection.';$('childFormError').hidden=false;return;}
+  closeChildModal();await loadChildren();showToast(id?'Profile updated.':'Child profile saved.');
 }
 function mapAuthError(error){return error?.message||'Sign-in failed. Check your email and password.';}
 async function showAppForSession(session){
-  $('authScreen').hidden=!!session;
-  $('appShell').hidden=!session;
-  if(session){$('signedInEmail').textContent=session.user.email||'Staff';await loadFeedback();
-    supabase.removeAllChannels();
-    supabase.channel('feedback-changes').on('postgres_changes',{event:'*',schema:'public',table:'feedback'},()=>loadFeedback()).subscribe();
-    if(!window.__seedInsightsRefresh){window.__seedInsightsRefresh=setInterval(()=>{if(document.visibilityState==='visible')loadFeedback();},15000);}
-  } else {feedback=[];}
+  $('authScreen').hidden=!!session;$('appShell').hidden=!session;
+  if(session){
+    const {data:approved,error}=await supabase.rpc('is_approved_staff');
+    if(error||approved!==true){
+      $('authScreen').hidden=false;$('appShell').hidden=true;
+      $('authError').textContent=error?'Could not verify staff access. Ask an administrator to check the database setup.':'This account is not on the approved staff access list.';
+      $('authError').hidden=false;
+      void supabase.auth.signOut();
+      return;
+    }
+    $('signedInEmail').textContent=session.user.email||'Staff';await loadChildren();
+  }
+  else {children=[];renderChildren();}
 }
-$('staffLoginForm').addEventListener('submit',async e=>{
-  e.preventDefault();$('authError').hidden=true;const btn=$('staffLoginButton');btn.disabled=true;btn.textContent='Signing in…';
+
+$('staffLoginForm').addEventListener('submit',async event=>{
+  event.preventDefault();$('authError').hidden=true;const button=$('staffLoginButton');button.disabled=true;button.textContent='Signing in…';
   const {data,error}=await supabase.auth.signInWithPassword({email:$('staffEmail').value.trim(),password:$('staffPassword').value});
-  btn.disabled=false;btn.textContent='Sign in';
+  button.disabled=false;button.textContent='Sign in';
   if(error){$('authError').textContent=mapAuthError(error);$('authError').hidden=false;return;}
   await showAppForSession(data.session);
 });
 $('staffLogout').addEventListener('click',async()=>{await supabase.auth.signOut();});
-supabase.auth.onAuthStateChange((_event,session)=>{showAppForSession(session);});
+supabase.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>void showAppForSession(session),0);});
 const {data:{session:initialSession}}=await supabase.auth.getSession();
 await showAppForSession(initialSession);
 
-document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.go)));$('addFeedbackTop').addEventListener('click',openModal);$('addFeedbackPage').addEventListener('click',openModal);$('closeModal').addEventListener('click',closeModal);$('cancelModal').addEventListener('click',closeModal);$('feedbackModal').addEventListener('click',e=>{if(e.target===$('feedbackModal'))closeModal();});$('dismissNotice').addEventListener('click',()=>document.querySelector('.notice').remove());$('mobileMenu').addEventListener('click',()=>$('sidebar').classList.toggle('open'));$('exportTop').addEventListener('click',exportCSV);$('searchFeedback').addEventListener('input',renderFeedback);$('sentimentFilter').addEventListener('change',renderFeedback);$('topicFilter').addEventListener('change',renderFeedback);
-$('feedbackForm').addEventListener('submit',async e=>{e.preventDefault();const text=$('feedbackText').value.trim();if(!text)return;const saveButton=$('saveFeedback');saveButton.disabled=true;saveButton.textContent='Analyzing…';try{const analysis=await analyzeText(text);const item={text,source:$('feedbackSource').value,date:$('feedbackDate').value||new Date().toISOString().slice(0,10),sentiment:analysis.sentiment,score:analysis.score,topic:classifyTopic(text),branch:$('feedbackBranch').value.trim()||null};const {error}=await supabase.from('feedback').insert(item);if(error)throw error;await loadFeedback();closeModal();showView('feedback');toast('Feedback saved and analyzed.');}catch(error){console.error('Staff feedback analysis or save failed.',error);toast('Could not analyze or save feedback. Check your connection and try again.');}finally{saveButton.disabled=false;saveButton.textContent='Save feedback';}});
-$('generateQR').addEventListener('click',()=>{const url=$('customerPageUrl').value.trim();if(!url||!/^https:\/\//i.test(url)){toast('Enter a valid public page URL first.');return;}if(!window.QRCode){toast('QR generator could not load. Check your connection.');return;}$('qrCode').innerHTML='';new QRCode($('qrCode'),{text:url,width:210,height:210,colorDark:'#17251b',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});$('downloadQR').disabled=false;toast('QR code generated.');});
-$('downloadQR').addEventListener('click',()=>{const box=$('qrCode');const canvas=box.querySelector('canvas');const img=box.querySelector('img');const src=canvas?canvas.toDataURL('image/png'):img?.src;if(!src){toast('Generate the QR code first.');return;}const a=document.createElement('a');a.href=src;a.download='seedinsights-parent-feedback-qr.png';a.click();});
-$('customerPageUrl').value=new URL('customer.html',window.location.href).href;
-$('reanalyzeButton').addEventListener('click',async()=>{const button=$('reanalyzeButton');button.disabled=true;button.textContent='Analyzing…';try{const model=await getModel();for(const item of feedback){const result=await model(item.text.slice(0,512));const r=Array.isArray(result)?result[0]:result;item.sentiment=sentimentLabel(r);item.score=Number(r?.score||0);item.topic=classifyTopic(item.text);}const updates=feedback.map(x=>supabase.from('feedback').update({sentiment:x.sentiment,score:x.score,topic:x.topic}).eq('id',x.id));const results=await Promise.all(updates);const failed=results.some(x=>x.error);if(failed)throw new Error('Database update permission is missing.');await loadFeedback();toast('Feedback analysis updated.');}catch(err){console.error(err);toast('Could not update analysis. Check staff update permissions.');}finally{button.disabled=false;button.textContent='↻ Re-analyze feedback';}});
+document.querySelectorAll('.nav-item').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.view)));
+document.querySelectorAll('[data-go]').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.go)));
+$('addChildOverview').addEventListener('click',()=>openChildModal());
+$('addChildPage').addEventListener('click',()=>openChildModal());
+$('closeChildModal').addEventListener('click',closeChildModal);
+$('cancelChildModal').addEventListener('click',closeChildModal);
+$('childModal').addEventListener('click',event=>{if(event.target===$('childModal'))closeChildModal();});
+$('childForm').addEventListener('submit',saveChild);
+$('searchChildren').addEventListener('input',renderChildren);
+$('branchFilter').addEventListener('change',renderChildren);
+$('mobileMenu').addEventListener('click',()=>$('sidebar').classList.toggle('open'));
+document.addEventListener('click',event=>{const button=event.target.closest('[data-edit-child]');if(!button)return;const child=children.find(item=>item.id===button.dataset.editChild);if(child)openChildModal(child);});
+document.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-summarize-child]');if(!button)return;
+  if(summaryInProgress)return;
+  const child=children.find(item=>item.id===button.dataset.summarizeChild);if(!child?.session_history?.trim())return;
+  summaryInProgress=true;
+  const result=$(`summary-${child.id}`);button.disabled=true;button.textContent='Preparing summary…';summaryProgressTarget=button;
+  try{
+    const model=await getSummarizer();summaryProgressTarget=button;button.textContent='Summarizing in browser…';
+    const output=await model(child.session_history.slice(0,3600),{max_new_tokens:100});
+    const summary=Array.isArray(output)?output[0]?.summary_text:output?.summary_text;
+    if(!summary?.trim())throw new Error('The summarizer returned an empty result.');
+    result.innerHTML=`<b>AI draft — review against the original notes</b><span>${escapeHTML(summary.trim())}</span>`;result.hidden=false;button.textContent='↻ Draft again';
+  }catch(error){console.error('Session history summarization failed:',error);result.innerHTML='<b>Summary unavailable</b><span>Could not load or run the summarizer. Check the connection and try again.</span>';result.hidden=false;button.textContent='Try summary again';}
+  finally{summaryProgressTarget=null;button.disabled=false;summaryInProgress=false;}
+});

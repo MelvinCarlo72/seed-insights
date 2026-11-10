@@ -1,31 +1,46 @@
-# SeedInsights — Parent Experience Feedback Analytics Prototype
+# SeedInsights — Purple Seedlings Child Profiles
 
-Student-project prototype adapted for Purple Seedlings Development Center. The proposed primary use is collecting parent/guardian feedback about the center experience and identifying recurring service-quality themes. This problem and workflow must be validated with authorized center staff before real deployment.
+SeedInsights is a staff-only prototype for maintaining one profile per child. It includes basic child details, parent/guardian contact information, and service or developmental fields selected for the updated company requirements.
 
-## Files
-- `customer.html`: public QR parent/guardian feedback form (no account required).
-- `index.html`: staff dashboard with authentication.
-- `customer.js` and `app.js`: Supabase data access, browser-based Transformers.js sentiment analysis in the staff dashboard, and transparent keyword-based topic grouping.
-- `supabase-config.js`: existing Supabase project URL and publishable key. Keep the secret/service-role key out of browser code.
-- `SEEDINSIGHTS_BRANCH_MIGRATION.sql`: adds an optional branch field to existing feedback records.
+## Features
+
+- Staff sign-in through Supabase Auth.
+- Approved-staff access list enforced by Supabase Row Level Security.
+- Child profile creation, editing, search, and branch filtering.
+- Basic details: first and last name, date of birth, and branch.
+- Parent/guardian contact: name, relationship, phone, and email.
+- Service/development information: enrolled service, goals or focus areas, session history, and staff notes.
+- On-demand Transformers.js summaries of session-history notes, generated in the browser as drafts for staff review.
+- Purple Seedlings branded staff dashboard.
+- Public feedback form, rating system, sentiment analysis, and QR feedback workflow removed.
 
 ## Run locally
-From this folder, run `python -m http.server 8000`, then open `http://localhost:8000/` for staff and `http://localhost:8000/customer.html` for the public form.
 
-## Database update
-Run `SEEDINSIGHTS_BRANCH_MIGRATION.sql` in the existing Supabase SQL Editor before using the updated form/dashboard. It adds `branch` as an optional text field; it does not delete existing feedback. Existing feedback rows remain in the database and may still contain coffee-shop test data. Clear or archive test records only after making a backup and confirming with the project team.
+Serve this folder over HTTP (for example, `python -m http.server 8000`) and open `http://localhost:8000/`.
 
-## Important safeguards
-- Do not collect child names, diagnoses, treatment/session details, contact details, or other identifying/sensitive information in this feedback tool.
-- This is service-experience feedback, not a clinical record, assessment, or child-progress system.
-- Before collecting real responses, obtain Purple Seedlings' approval, confirm the privacy notice, lawful basis, retention period, authorized staff, and incident/contact process with the center's privacy lead.
-- Keep Supabase Row Level Security enabled. Restrict dashboard access to approved staff; do not enable public reads.
-- The sentiment model is English-focused and may misclassify Filipino/Taglish, sarcasm, and mixed comments. Topic grouping is keyword matching, not a trained topic model. Human review is required.
-- Branch values are free text for prototype flexibility; standardize approved branch names with the center before using branch comparisons.
+## Database setup
 
-## AI approach
-Transformers.js runs sentiment analysis in the staff dashboard when authorized staff re-analyze feedback. The public form does not need to load the model to submit a response. Rule-based keyword matching assigns one of the parent-experience topics. The insights panel aggregates feedback and presents review prompts; it does not make clinical or personnel judgments.
+Run `SUPABASE_CHILD_PROFILES_MIGRATION.sql` in the Supabase SQL Editor as a project administrator. It permanently deletes every row in the legacy `feedback` table and drops that table, then creates the staff allowlist and child profile table with RLS enabled. This is a destructive migration. It is intentionally limited to the old feedback table and does not delete other tables.
 
+After approved staff Auth accounts exist, add them to `public.staff_access` using the example SQL at the end of the migration. Until an account is approved there, it can sign in but cannot read or change child profiles.
 
-## Purple Seedlings brand assets
-The dashboard and public feedback form use the Purple Seedlings mascot at `assets/purple-seedlings-mascot.png` and a purple/lavender visual theme. Keep the `assets` folder when deploying to Vercel.
+The migration must be run before the new app can load or save child profiles. The browser uses only the Supabase publishable key in `supabase-config.js`; never place a service-role or secret key in browser code.
+
+## Privacy and deployment
+
+- The public `customer.html` page now directs visitors to staff sign-in and does not accept child information.
+- Child details, guardian contacts, goals, session history, and notes may be sensitive. Use synthetic records for class demos.
+- The center must approve the purpose, exact fields, access list, consent process, privacy notice, retention/deletion schedule, AI processing, and incident process before real records are entered.
+- Avoid diagnoses, treatment plans, assessments, or other clinical details unless the center has explicitly approved that collection and the system is designed and authorized for it.
+- Keep RLS enabled and only activate explicitly approved staff accounts in `staff_access`.
+- The app is a prototype and has not been security-certified or approved for production child records.
+
+## AI feature
+
+Staff can select **Draft AI summary** on a profile’s session history. Transformers.js runs the `Xenova/distilbart-cnn-6-6` summarization model in the browser. The model is downloaded from Hugging Face on first use and may be cached by the browser. The note text is not sent to a hosted inference API, and the generated summary is not saved; staff must check it against the original. The model is English-focused and can omit or distort details, especially in Filipino or Taglish notes. Do not use the summary as a clinical assessment or decision.
+
+Model information: https://huggingface.co/Xenova/distilbart-cnn-6-6
+
+## Brand assets
+
+The dashboard uses the Purple Seedlings mascot at `assets/purple-seedlings-mascot.png` and the existing purple/lavender theme. Keep the `assets` folder when deploying.
