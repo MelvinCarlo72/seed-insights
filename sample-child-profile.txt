@@ -1,0 +1,25 @@
+SAMPLE CHILD PROFILE — FICTIONAL DEMO DATA
+This record is entirely fictional and is provided only to test the SeedInsights import feature.
+
+Child name: Mika Santos
+Date of birth: 2018-04-12
+Branch: Sample Branch
+
+Parent/guardian: Alex Santos
+Relationship: Parent
+Phone: 000-000-0000 (placeholder)
+Email: alex.santos@example.invalid (placeholder)
+
+Enrolled service: Sample Speech and Language Support
+
+Developmental goals / focus areas:
+- Practice taking turns during short conversations.
+- Build confidence using complete sentences to describe everyday activities.
+- Continue vocabulary activities in English and Filipino, based on the family's preference.
+
+Session history:
+2026-10-20 — Sample session. Mika joined a picture-description activity and took turns with the facilitator. The family was given a simple home practice activity.
+2026-10-27 — Sample session. Mika described familiar objects using short sentences and completed a matching game. Continue turn-taking activities next session.
+
+Staff notes:
+Fictional demonstration note only. Guardian prefers brief home practice instructions in English and Filipino. No clinical diagnosis or assessment is included in this sample.

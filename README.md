@@ -11,7 +11,7 @@ SeedInsights is a staff-only prototype for maintaining one profile per child. It
 - Parent/guardian contact: name, relationship, phone, and email.
 - Service/development information: enrolled service, goals or focus areas, session history, and staff notes.
 - On-demand Transformers.js summaries of session-history notes, generated in the browser as drafts for staff review.
-- Staff-only PDF/TXT import that drafts profile fields through a protected Supabase Edge Function; staff review each field before saving.
+- Staff-only local PDF/TXT parsing for explicitly labeled profile fields; staff review each draft before saving.
 - Purple Seedlings branded staff dashboard.
 - Public feedback form, rating system, sentiment analysis, and QR feedback workflow removed.
 
@@ -42,11 +42,9 @@ Staff can select **Draft AI summary** on a profile’s session history. Transfor
 
 Model information: https://huggingface.co/Xenova/distilbart-cnn-6-6
 
-## AI-assisted file import
+## Local file import
 
-The import flow accepts text PDFs (up to 40 pages) and TXT files (up to 10 MB). PDF text extraction runs in the browser. Scanned/image-only PDFs are not supported until OCR is configured. Extracted text (up to 40,000 characters) is sent to `supabase/functions/extract-child-profile`; the original file is not uploaded or retained by this app. The function checks Supabase sign-in and `is_approved_staff()` before calling the AI provider.
-
-Deploy the Edge Function and set server-side secrets `AI_CHAT_COMPLETIONS_URL`, `AI_API_KEY`, and `AI_MODEL` for an approved OpenAI-compatible chat-completions endpoint. Set `APP_ORIGIN` to the deployed app origin. Never put the provider key in frontend code. The configured provider receives document text, so use only provider and retention settings approved by the center and instructor. Results are drafts and are not saved automatically; staff must compare every field with the source document.
+The import flow accepts text PDFs (up to 40 pages) and TXT files (up to 10 MB). PDF text extraction and label matching happen locally in the browser; document text is not sent to an AI provider or stored by this app. The parser recognizes the labeled demo profile format, then opens an editable draft for staff review. It does not infer missing information. Scanned/image-only PDFs are not supported because they require OCR. The existing Transformers.js session-summary feature remains the app's AI feature.
 
 ## Brand assets
 

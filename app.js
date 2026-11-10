@@ -167,7 +167,42 @@ async function extractDocumentText(file){
   if(file.name.toLowerCase().endsWith('.txt'))return await file.text();
   const pdfjs=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
   const pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;if(pdf.numPages>40)throw new Error('PDF must be 40 pages or fewer.');let text='';
-  for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){const page=await pdf.getPage(pageNo);const content=await page.getTextContent();text+=content.items.map(item=>item.str).join(' ')+'\n';}
+  for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){
+    const page=await pdf.getPage(pageNo);const content=await page.getTextContent();
+    const rows=new Map();
+    for(const item of content.items){if(!item.str?.trim()||!item.transform)continue;const y=Math.round(item.transform[5]*2)/2;const row=rows.get(y)||[];row.push({x:item.transform[4],text:item.str});rows.set(y,row);}
+    text+=[...rows.entries()].sort((a,b)=>b[0]-a[0]).map(([,row])=>row.sort((a,b)=>a.x-b.x).map(item=>item.text).join(' ')).join('\n')+'\n';
+  }
   if(text.trim().length<40)throw new Error('No readable text found. Scanned PDFs need OCR, which is not configured.');return text;
 }
-$('analyzeDocument').addEventListener('click',async()=>{if(!selectedDocument)return;const button=$('analyzeDocument');button.disabled=true;$('importError').hidden=true;$('importProgress').hidden=false;$('importProgress').textContent='Reading and analyzing…';try{const documentText=await extractDocumentText(selectedDocument);if(documentText.length>40000)throw new Error('Text exceeds the 40,000 character limit.');const {data,error}=await supabase.functions.invoke('extract-child-profile',{body:{documentText}});if(error)throw new Error(error.message||'AI extraction failed.');if(!data?.profile)throw new Error('Invalid extraction response.');const draft={};for(const key of Object.keys(fields))draft[key]=typeof data.profile[key]==='string'?data.profile[key]:'';importModal.classList.add('hidden');openChildModal(draft);$('childFormError').textContent='AI-generated draft. Compare every field with the original before saving.';$('childFormError').hidden=false;showToast('Draft ready for review. Nothing has been saved yet.');}catch(error){console.error('Document extraction failed:',error);$('importError').textContent=error.message||'Could not analyze this file.';$('importError').hidden=false;}finally{button.disabled=false;$('importProgress').hidden=true;}});
+const allImportLabels=['Child full name','Child name','Full name','Name of child','First name','Given name','Last name','Surname','Date of birth','Birth date','DOB','Branch','Guardian name','Parent/guardian name','Parent/guardian','Relationship to child','Relationship','Guardian phone','Phone number','Phone','Guardian email','Email address','Email','Enrolled service','Service enrolled','Goals / focus areas','Developmental goals / focus areas','Developmental goals','Goals','Session history','Staff notes','Notes'];
+function sectionText(text,startHeading,endHeading){const start=text.search(new RegExp(startHeading,'i'));if(start<0)return text;const after=start+text.slice(start).match(new RegExp(startHeading,'i'))[0].length;const tail=text.slice(after);const end=endHeading?tail.search(new RegExp(endHeading,'i')):-1;return end<0?tail:tail.slice(0,end);}
+function readLabeledValue(section,aliases){
+  const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const label=aliases.map(escape).sort((a,b)=>b.length-a.length).join('|');
+  const stops=allImportLabels.map(escape).sort((a,b)=>b.length-a.length).join('|');
+  const match=section.match(new RegExp('(?:^|[\\s])(?:'+label+')\\s*:?\\s*(.*?)(?=\\s+(?:'+stops+')\\s*:?|$)','is'));
+  return match?.[1]?.replace(/^[:\s-]+|[\s-]+$/g,'').replace(/\s+Fictional sample.*$/i,'').replace(/\s+Page\s+\d+\s*$/i,'').trim()||'';
+}
+function parseLabeledProfile(text){
+  const child=sectionText(text,'Child details','Parent or guardian');
+  const guardian=sectionText(text,'Parent or guardian|Parent/guardian|Guardian details','Service and developmental information|Enrolled service');
+  const service=sectionText(text,'Service and developmental information');
+  const profile={};
+  profile.first_name=readLabeledValue(child,['First name','Given name']);
+  profile.last_name=readLabeledValue(child,['Last name','Surname']);
+  const fullName=readLabeledValue(child,['Child full name','Child name','Full name','Name of child']);
+  if(fullName&&(!profile.first_name||!profile.last_name)){const parts=fullName.split(/\s+/);if(!profile.first_name)profile.first_name=parts.shift()||'';if(!profile.last_name)profile.last_name=parts.join(' ');}
+  profile.date_of_birth=readLabeledValue(child,['Date of birth','Birth date','DOB']);
+  profile.branch=readLabeledValue(child,['Branch']);
+  profile.guardian_name=readLabeledValue(guardian,['Guardian name','Parent/guardian name','Parent/guardian','Name']);
+  profile.guardian_relationship=readLabeledValue(guardian,['Relationship to child','Relationship']);
+  profile.guardian_phone=readLabeledValue(guardian,['Guardian phone','Phone number','Phone']);
+  profile.guardian_email=readLabeledValue(guardian,['Guardian email','Email address','Email']);
+  profile.enrolled_service=readLabeledValue(service,['Enrolled service','Service enrolled']);
+  profile.developmental_goals=readLabeledValue(service,['Goals / focus areas','Developmental goals / focus areas','Developmental goals','Goals']);
+  profile.session_history=readLabeledValue(service,['Session history']);
+  profile.staff_notes=readLabeledValue(service,['Staff notes','Notes']);
+  return profile;
+}
+$('analyzeDocument').addEventListener('click',async()=>{if(!selectedDocument)return;const button=$('analyzeDocument');button.disabled=true;$('importError').hidden=true;$('importProgress').hidden=false;$('importProgress').textContent='Reading file locally…';try{const documentText=await extractDocumentText(selectedDocument);if(documentText.length>40000)throw new Error('Text exceeds the 40,000 character limit.');$('importProgress').textContent='Matching labeled fields…';const draft=parseLabeledProfile(documentText);if(!draft.first_name&&!draft.last_name&&!draft.guardian_name&&!draft.enrolled_service)throw new Error('No supported profile labels were found. Use a labeled PDF or TXT template, or enter the profile manually.');importModal.classList.add('hidden');openChildModal(draft);$('childFormError').textContent='Locally parsed draft. Check every field against the original before saving.';$('childFormError').hidden=false;showToast('Draft ready for review. Nothing has been saved yet.');}catch(error){console.error('Local document parsing failed:',error);$('importError').textContent=error.message||'Could not parse this file.';$('importError').hidden=false;}finally{button.disabled=false;$('importProgress').hidden=true;}});
